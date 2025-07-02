@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ventas Supabase</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <!-- Login -->
+  <div id="login" class="max-w-sm mx-auto mt-6">
+    <h2 class="text-xl font-bold mb-2">Iniciar sesión</h2>
+    <input id="email" type="email" placeholder="Correo" class="border p-2 w-full mb-2">
+    <input id="password" type="password" placeholder="Contraseña" class="border p-2 w-full mb-2">
+    <button onclick="login()" class="bg-blue-600 text-white px-4 py-2 rounded">Entrar</button>
+  </div>
+
+  <!-- Gráfico de ventas -->
+  <div id="contenedorGrafico" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-6 hidden">
+    <h1 class="text-2xl font-bold mb-4 text-center">📊 Grafico de ventas</h1>
+    <canvas id="graficoVentas" width="400" height="200"></canvas>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://fvrzwsmvegwetrpyrlpy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2cnp3c212ZWd3ZXRycHlybHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjIwMzksImV4cCI6MjA2NjE5ODAzOX0.L8PwXCMyDqL_keMxph9gyJTCqm6KoOzL1SNYR-UFmL4";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        Swal.fire("Error", "Por favor, completa todos los campos", "error");
+        return;
+      }
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        console.error("Error de login:", error.message);
+        Swal.fire("Error", "Credenciales inválidas", "error");
+        return;
+      }
+
+      console.log("Login exitoso, usuario:", data.user);
+
+      Swal.fire("Acceso concedido", "Bienvenido", "success");
+
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("contenedorGrafico").classList.remove("hidden");
+
+      renderizarGrafico();
+    }
+
+    
+
+async function renderizarGrafico() {
+  // Consultamos Ventas, junto con Videojuego y Plataforma con select anidado
+  const { data, error } = await supabaseClient
+    .from('ventas')  // tabla en minúsculas
+    .select(`
+      cantidad,
+      videojuego (
+        nombre,
+        plataforma (
+          nombreplataforma
+        )
+      )
+    `);
+
+
+
+  if (error || !data) {
+    console.error("Error al obtener ventas con videojuegos y plataformas:", error);
+    Swal.fire("Error", "No se pudieron obtener los datos", "error");
+    return;
+  }
+
+  // Agrupar ventas por videojuego + plataforma
+  const ventasAgrupadas = {};
+
+  data.forEach(({ cantidad, videojuego }) => {
+    if (!videojuego) return;
+    const titulo = videojuego.nombre || "Desconocido";
+    const plataforma = videojuego.plataforma?.nombreplataforma || "Sin plataforma";
+
+    const key = `${titulo} - ${plataforma}`;
+    ventasAgrupadas[key] = (ventasAgrupadas[key] || 0) + cantidad;
+  });
+
+
+
+  const etiquetas = Object.keys(ventasAgrupadas);
+  const cantidades = Object.values(ventasAgrupadas);
+
+  if (etiquetas.length === 0) {
+    Swal.fire("Sin datos", "No hay datos para mostrar en el gráfico", "info");
+    return;
+  }
+
+  // Dibujar gráfico
+  const ctx = document.getElementById("graficoVentas").getContext("2d");
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: etiquetas,
+      datasets: [{
+        label: "Ventas por título y plataforma",
+        data: cantidades,
+        backgroundColor: "rgba(59, 130, 246, 0.5)",
+        borderColor: "rgba(59, 130, 246, 1)",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+}
+
+  </script>
+</body>
+</html>

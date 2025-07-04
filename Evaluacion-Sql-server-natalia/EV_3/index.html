@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - Puerto Games</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
+
+  <!-- CryptoJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+
+<body class="bg-green-100 p-6">
+
+  <div id="login" class="max-w-sm mx-auto mt-6">
+    <h2 class="text-xl font-bold mb-2">Iniciar sesión</h2>
+    <input id="email" type="email" placeholder="Correo" class="border p-2 w-full mb-2" />
+    <input id="password" type="password" placeholder="Contraseña" class="border p-2 w-full mb-2" />
+    <button onclick="handleLogin()" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Entrar</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://fvrzwsmvegwetrpyrlpy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2cnp3c212ZWd3ZXRycHlybHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjIwMzksImV4cCI6MjA2NjE5ODAzOX0.L8PwXCMyDqL_keMxph9gyJTCqm6KoOzL1SNYR-UFmL4";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function login(email, password) {
+      const { data, error } = await supabase.rpc('validar_login', {
+        p_email: email,
+        p_password: password
+      });
+
+      if (error) {
+        console.error('Error al validar login:', error);
+        Swal.fire('Error', 'Ocurrió un error al intentar iniciar sesión.', 'error');
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        localStorage.setItem("usuario", JSON.stringify(data[0]));
+
+        Swal.fire('¡Bienvenido!', `Hola ${data[0].email}`, 'success').then(() => {
+          window.location.href = "index2.html";
+        });
+
+        return data[0];
+      } else {
+        Swal.fire('Credenciales inválidas', 'Correo o contraseña incorrectos.', 'warning');
+        return null;
+      }
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        Swal.fire('Faltan datos', 'Por favor ingresa correo y contraseña', 'info');
+        return;
+      }
+
+      await login(email, password);
+    }
+  </script>
+</body>
+</html>

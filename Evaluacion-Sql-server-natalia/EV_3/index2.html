@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gráfico de ventas - Puerto Games</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body class="bg-green-100 p-6">
+
+    <!-- NAV -->
+    <div class="flex bg-cyan-600 shadow-xl bg-opacity-30 text-white p-6 mb-6 mt-4">
+        <div class="flex flex-col sm:flex-row items-center sm:items-baseline justify-between w-full px-4 py-2">
+
+            <!-- LOGO y TÍTULO -->
+            <div class="flex items-center sm:ml-4">
+                <a href="index.html" class="text-white text-2xl font-semibold ml-4 sm:ml-0">Puerto Games</a>
+            </div>
+
+            <!-- MENÚ DERECHO -->
+            <div class="flex justify-center items-center w-full sm:w-auto">
+                <ul class="text-white text-lg font-semibold flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                    <li class="sm:order-last">
+                        <a class="fa-solid fa-user hover:text-emerald-300 transition text-2xl" href="login.html" id="iconoUsuario"></a>
+                    </li>
+                    <li><a class="hover:text-emerald-300 transition" href="index.html">Inicio</a></li>
+                    <li><a class="hover:text-emerald-300 transition" href="index2.html">Ventas</a></li>
+                    <li><a class="hover:text-emerald-300 transition" href="inventario.html">Inventario</a></li>
+                    <li><a class="hover:text-emerald-300 transition" href="juegos.html">Juegos</a></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Contenedor para gráfico de barras -->
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md p-6 mb-6">
+      <h2 class="text-xl font-bold mb-2">Ventas por título y plataforma (Gráfico de barras)</h2>
+      <canvas id="graficoVentasBarra" width="400" height="200"></canvas>
+    </div>
+
+    <!-- Contenedor para gráfico de torta -->
+    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-6 mb-6">
+      <h2 class="text-xl font-bold mb-2">Nivel de ventas (Gráfico de torta)</h2>
+      <canvas id="graficoVentasTorta" width="400" height="200"></canvas>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold mb-2">Cantidad de titulos vendidos (Gráfico de linea)
+        <canvas id="graficoLineaVentas" width="400" height="200"></canvas>
+
+    </h2>
+
+    </div>
+  <script>
+    const SUPABASE_URL = "https://fvrzwsmvegwetrpyrlpy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2cnp3c212ZWd3ZXRycHlybHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjIwMzksImV4cCI6MjA2NjE5ODAzOX0.L8PwXCMyDqL_keMxph9gyJTCqm6KoOzL1SNYR-UFmL4";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+    function checkSession() {
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+    if (!usuario || !usuario.email) {
+        Swal.fire("Acceso denegado", "Debes iniciar sesión primero", "warning").then(() => {
+        window.location.href = "index.html";
+        });
+    } else {
+        // Está logueado correctamente
+        renderizarGrafico();
+        renderizarGraficoTorta();
+        renderizarGraficoLinea();
+    }
+    }
+
+
+    async function renderizarGrafico() {
+      const { data, error } = await supabaseClient
+        .from('ventas')
+        .select(`
+          cantidad,
+          videojuego:idjuego (
+            nombre,
+            plataforma:idplataforma (
+              nombreplataforma
+            )
+          )
+        `)
+        .order('cantidad', { ascending: false });
+
+      if (error || !data) {
+        Swal.fire("Error", "No se pudieron obtener los datos", "error");
+        return;
+      }
+
+      const ventasAgrupadas = {};
+
+      data.forEach(({ cantidad, videojuego }) => {
+        if (!videojuego) return;
+        const titulo = videojuego.nombre || "Desconocido";
+        const plataforma = videojuego.plataforma?.nombreplataforma || "Sin plataforma";
+
+        const key = `${titulo} - ${plataforma}`;
+        ventasAgrupadas[key] = (ventasAgrupadas[key] || 0) + cantidad;
+      });
+
+      const etiquetas = Object.keys(ventasAgrupadas);
+      const cantidades = Object.values(ventasAgrupadas);
+
+      if (etiquetas.length === 0) {
+        Swal.fire("Sin datos", "No hay datos para mostrar en el gráfico", "info");
+        return;
+      }
+
+      const ctx = document.getElementById("graficoVentasBarra").getContext("2d");
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: etiquetas,
+          datasets: [{
+            label: "Ventas por título y plataforma",
+            data: cantidades,
+            backgroundColor: "rgba(59, 130, 246, 0.5)",
+            borderColor: "rgba(59, 130, 246, 1)",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+    //La distribución total de unidades vendidas según su nivel de volumen por venta
+    async function renderizarGraficoTorta() {
+      const { data, error } = await supabaseClient
+          .from('ventas')
+          .select('cantidad');
+
+      if (error || !data) {
+          Swal.fire("Error", "No se pudieron obtener los datos", "error");
+          return;
+      }
+
+      const niveles = { Alta: 0, Media: 0, Baja: 0 };
+
+      data.forEach(({ cantidad }) => {
+          if (cantidad >= 7) niveles.Alta += cantidad;
+          else if (cantidad >= 3) niveles.Media += cantidad;
+          else niveles.Baja += cantidad;
+      });
+
+      const etiquetas = Object.keys(niveles);
+      const cantidades = Object.values(niveles);
+
+      const ctx = document.getElementById("graficoVentasTorta").getContext("2d");
+      new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: etiquetas,
+            datasets: [{
+              data: cantidades,
+              backgroundColor: [
+                'rgba(34,197,94,0.7)',    // Verde = Alta
+                'rgba(251,191,36,0.7)',   // Amarillo = Media
+                'rgba(239,68,68,0.7)'     // Rojo = Baja
+              ],
+              borderColor: 'white',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    return `${label}: ${value}`;
+                  }
+                }
+              }
+            }
+          }
+      });
+    }
+
+    //Grafico de linea
+    async function renderizarGraficoLinea() {
+  const { data, error } = await supabaseClient
+    .from('v_nro_ventas')
+    .select('*')
+    .order('cantidad', { ascending: false });
+
+  if (error || !data) {
+    Swal.fire("Error", "No se pudieron obtener los datos", "error");
+    return;
+  }
+
+  const etiquetas = data.map(row => `${row.videojuego_nombre} (${row.nombreplataforma})`);
+  const cantidades = data.map(row => row.cantidad);
+
+  const ctx = document.getElementById('graficoLineaVentas').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: etiquetas,
+      datasets: [{
+        label: 'Cantidad vendida por juego y plataforma',
+        data: cantidades,
+        borderColor: 'rgba(59,130,246,1)',
+        backgroundColor: 'rgba(59,130,246,0.2)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return ` ${context.label}: ${context.parsed}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Cantidad Vendida'
+          }
+        },
+        x: {
+          ticks: {
+            maxRotation: 90,
+            minRotation: 45
+          }
+        }
+      }
+    }
+  });
+}
+
+window.onload = renderizarGraficoLinea;
+
+
+
+    // Al cargar la página verificamos sesión
+    window.onload = checkSession;
+  </script>
+</body>
+</html>

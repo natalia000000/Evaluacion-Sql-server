@@ -1,9 +1,10 @@
 Base de datos PuertoGames
-5 tablas:
+6 tablas:
 Videojuego,
 plataforma,
 genero,
 usuarios.
+log de videojuegos.
 
 -Gráfico de barras: Ventas por título y plataforma.
 Este gráfico muestra la cantidad de unidades vendidas para cada combinación de videojuego y plataforma. Permite visualizar qué títulos han tenido mayor éxito en cada plataforma.

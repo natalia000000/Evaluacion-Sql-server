@@ -1,9 +1,20 @@
 Base de datos PuertoGames
+
+
 6 tablas:
+
+
 Videojuego,
+
+
 plataforma,
+
+
 genero,
+
+
 usuarios.
+
 log de videojuegos.
 
 -Gráfico de barras: Ventas por título y plataforma.
